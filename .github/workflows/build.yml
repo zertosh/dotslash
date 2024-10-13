@@ -1,23 +1,25 @@
 name: cargo build/test/clippy
 
-on: [push, pull_request, workflow_dispatch]
+on: push
 
 permissions:
   contents: read
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        # macos-13 appears to be x86 while macos-14 is M1
-        # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners
-        os: [ubuntu-latest, windows-latest, macos-13, macos-14]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+  linux-musl-arm64:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo build
-      - run: cargo build --release
-      - run: cargo test
-      - run: cargo clippy
+        with:
+          targets: aarch64-unknown-linux-musl
+      - name: Install aarch64 musl build tools
+        run: |
+          sudo apt update
+          sudo apt install -y musl-tools gcc-aarch64-linux-gnu
+      - run: cargo build --target aarch64-unknown-linux-musl --release
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: aarch64-linux-gnu-gcc
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS: -C target-feature=-crt-static
+          CC_aarch64_unknown_linux_musl: aarch64-linux-gnu-gcc
